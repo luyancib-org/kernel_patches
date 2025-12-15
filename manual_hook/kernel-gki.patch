@@ -1,0 +1,174 @@
+From 693625ae25dbb2b2e14b7cd1c06c5eae19796c6e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?YC=E9=85=B1luyancib?= <luyancib@qq.com>
+Date: Mon, 15 Dec 2025 17:31:39 +0800
+Subject: [PATCH] KSU: Add manual hook support
+
+---
+ drivers/input/input.c |  9 +++++++++
+ fs/exec.c             | 15 +++++++++++++++
+ fs/open.c             |  8 ++++++++
+ fs/read_write.c       | 10 ++++++++++
+ fs/stat.c             |  7 +++++++
+ kernel/reboot.c       |  7 +++++++
+ 6 files changed, 56 insertions(+)
+
+diff --git a/drivers/input/input.c b/drivers/input/input.c
+index 9bb1d3de7..15d01bb59 100644
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -391,10 +391,19 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
+ 	}
+ }
+ 
++#ifdef CONFIG_KSU
++extern bool ksu_input_hook __read_mostly;
++extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
++#endif
++
+ void input_handle_event(struct input_dev *dev,
+ 			unsigned int type, unsigned int code, int value)
+ {
+ 	int disposition;
++#ifdef CONFIG_KSU
++	if (unlikely(ksu_input_hook))
++		ksu_handle_input_handle_event(&type, &code , &value);
++#endif
+ 
+ 	lockdep_assert_held(&dev->event_lock);
+ 
+diff --git a/fs/exec.c b/fs/exec.c
+index cf487b0e4..7c5db456b 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1901,6 +1901,14 @@ static int bprm_execve(struct linux_binprm *bprm,
+ 	return retval;
+ }
+ 
++#ifdef CONFIG_KSU
++extern bool ksu_execveat_hook __read_mostly;
++extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
++			void *envp, int *flags);
++extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
++				void *argv, void *envp, int *flags);
++#endif
++
+ static int do_execveat_common(int fd, struct filename *filename,
+ 			      struct user_arg_ptr argv,
+ 			      struct user_arg_ptr envp,
+@@ -1909,6 +1917,13 @@ static int do_execveat_common(int fd, struct filename *filename,
+ 	struct linux_binprm *bprm;
+ 	int retval;
+ 
++#ifdef CONFIG_KSU
++	if (unlikely(ksu_execveat_hook))
++		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
++	else
++		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
++#endif
++
+ 	if (IS_ERR(filename))
+ 		return PTR_ERR(filename);
+ 
+diff --git a/fs/open.c b/fs/open.c
+index f69210a88..7eadb124e 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -455,6 +455,11 @@ static const struct cred *access_override_creds(void)
+ 	return old_cred;
+ }
+ 
++#ifdef CONFIG_KSU
++extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
++			int *flags);
++#endif
++
+ static long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
+ {
+ 	struct path path;
+@@ -462,6 +467,9 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
+ 	int res;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW;
+ 	const struct cred *old_cred = NULL;
++#ifdef CONFIG_KSU
++	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
++#endif
+ 
+ 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
+ 		return -EINVAL;
+diff --git a/fs/read_write.c b/fs/read_write.c
+index 066490235..21a1bb641 100644
+--- a/fs/read_write.c
++++ b/fs/read_write.c
+@@ -448,9 +448,19 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
+ }
+ EXPORT_SYMBOL_NS(kernel_read, ANDROID_GKI_VFS_EXPORT_ONLY);
+ 
++#ifdef COMFIG_KSU
++extern bool ksu_vfs_read_hook __read_mostly;
++extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
++			size_t *count_ptr, loff_t **pos);
++#endif
++
+ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+ {
+ 	ssize_t ret;
++#ifdef CONFIG_KSU
++	if (unlikely(ksu_vfs_read_hook))
++		ksu_handle_vfs_read(&file, &buf, &count, &pos);
++#endif
+ 
+ 	if (!(file->f_mode & FMODE_READ))
+ 		return -EBADF;
+diff --git a/fs/stat.c b/fs/stat.c
+index 517fa4ed8..ccc206b71 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -214,6 +214,10 @@ int getname_statx_lookup_flags(int flags)
+ 	return lookup_flags;
+ }
+ 
++#ifdef CONFIG_KSU
++extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
++#endif
++
+ /**
+  * vfs_statx - Get basic and extra attributes by filename
+  * @dfd: A file descriptor representing the base dir for a relative filename
+@@ -236,6 +240,9 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
+ 	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
+ 	int error;
+ 
++#ifdef CONFIG_KSU
++	ksu_handle_stat(&dfd, &filename, &flags);
++#endif
+ 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
+ 		      AT_STATX_SYNC_TYPE))
+ 		return -EINVAL;
+diff --git a/kernel/reboot.c b/kernel/reboot.c
+index 344ceaf5e..307cee3c9 100644
+--- a/kernel/reboot.c
++++ b/kernel/reboot.c
+@@ -693,6 +693,10 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
+ 
+ DEFINE_MUTEX(system_transition_mutex);
+ 
++#ifdef CONFIG_KSU
++extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg);
++#endif
++
+ /*
+  * Reboot system call: for obvious reasons only root may call it,
+  * and even root needs to set up some magic numbers in the registers
+@@ -708,6 +712,9 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+ 	char buffer[256];
+ 	int ret = 0;
+ 
++#ifdef CONFIG_KSU
++	ksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
++#endif
+ 	/* We only trust the superuser with rebooting the system. */
+ 	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
+ 		return -EPERM;
+-- 
+2.39.5
+
