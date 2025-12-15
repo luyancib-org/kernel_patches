@@ -1,4 +1,4 @@
-From 693625ae25dbb2b2e14b7cd1c06c5eae19796c6e Mon Sep 17 00:00:00 2001
+From 04496d9d6bea78e20570e46d7e33aea09f26cfe7 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?YC=E9=85=B1luyancib?= <luyancib@qq.com>
 Date: Mon, 15 Dec 2025 17:31:39 +0800
 Subject: [PATCH] KSU: Add manual hook support
@@ -8,9 +8,9 @@ Subject: [PATCH] KSU: Add manual hook support
  fs/exec.c             | 15 +++++++++++++++
  fs/open.c             |  8 ++++++++
  fs/read_write.c       | 10 ++++++++++
- fs/stat.c             |  7 +++++++
+ fs/stat.c             |  8 ++++++++
  kernel/reboot.c       |  7 +++++++
- 6 files changed, 56 insertions(+)
+ 6 files changed, 57 insertions(+)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 9bb1d3de7..15d01bb59 100644
@@ -120,30 +120,31 @@ index 066490235..21a1bb641 100644
  	if (!(file->f_mode & FMODE_READ))
  		return -EBADF;
 diff --git a/fs/stat.c b/fs/stat.c
-index 517fa4ed8..ccc206b71 100644
+index 517fa4ed8..512357865 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
-@@ -214,6 +214,10 @@ int getname_statx_lookup_flags(int flags)
- 	return lookup_flags;
+@@ -271,6 +271,10 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
+ 	return error;
  }
  
 +#ifdef CONFIG_KSU
 +extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
 +#endif
 +
- /**
-  * vfs_statx - Get basic and extra attributes by filename
-  * @dfd: A file descriptor representing the base dir for a relative filename
-@@ -236,6 +240,9 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
- 	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
- 	int error;
+ int vfs_fstatat(int dfd, const char __user *filename,
+ 			      struct kstat *stat, int flags)
+ {
+@@ -278,6 +282,10 @@ int vfs_fstatat(int dfd, const char __user *filename,
+ 	int statx_flags = flags | AT_NO_AUTOMOUNT;
+ 	struct filename *name;
  
 +#ifdef CONFIG_KSU
 +	ksu_handle_stat(&dfd, &filename, &flags);
 +#endif
- 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
- 		      AT_STATX_SYNC_TYPE))
- 		return -EINVAL;
++
+ 	/*
+ 	 * Work around glibc turning fstat() into fstatat(AT_EMPTY_PATH)
+ 	 *
 diff --git a/kernel/reboot.c b/kernel/reboot.c
 index 344ceaf5e..307cee3c9 100644
 --- a/kernel/reboot.c
