@@ -1,4 +1,4 @@
-From 04496d9d6bea78e20570e46d7e33aea09f26cfe7 Mon Sep 17 00:00:00 2001
+From df889fc39f18b1363008c39a95d0acbed45bf4db Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?YC=E9=85=B1luyancib?= <luyancib@qq.com>
 Date: Mon, 15 Dec 2025 17:31:39 +0800
 Subject: [PATCH] KSU: Add manual hook support
@@ -9,11 +9,11 @@ Subject: [PATCH] KSU: Add manual hook support
  fs/open.c             |  8 ++++++++
  fs/read_write.c       | 10 ++++++++++
  fs/stat.c             |  8 ++++++++
- kernel/reboot.c       |  7 +++++++
- 6 files changed, 57 insertions(+)
+ kernel/reboot.c       |  8 ++++++++
+ 6 files changed, 58 insertions(+)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index 9bb1d3de7..15d01bb59 100644
+index 9bb1d3de7..e1c7bd070 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
 @@ -391,10 +391,19 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
@@ -31,7 +31,7 @@ index 9bb1d3de7..15d01bb59 100644
  	int disposition;
 +#ifdef CONFIG_KSU
 +	if (unlikely(ksu_input_hook))
-+		ksu_handle_input_handle_event(&type, &code , &value);
++		ksu_handle_input_handle_event(&type, &code, &value);
 +#endif
  
  	lockdep_assert_held(&dev->event_lock);
@@ -96,14 +96,14 @@ index f69210a88..7eadb124e 100644
  	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
  		return -EINVAL;
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 066490235..21a1bb641 100644
+index 066490235..23341a90d 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
 @@ -448,9 +448,19 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
  }
  EXPORT_SYMBOL_NS(kernel_read, ANDROID_GKI_VFS_EXPORT_ONLY);
  
-+#ifdef COMFIG_KSU
++#ifdef CONFIG_KSU
 +extern bool ksu_vfs_read_hook __read_mostly;
 +extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
 +			size_t *count_ptr, loff_t **pos);
@@ -146,7 +146,7 @@ index 517fa4ed8..512357865 100644
  	 * Work around glibc turning fstat() into fstatat(AT_EMPTY_PATH)
  	 *
 diff --git a/kernel/reboot.c b/kernel/reboot.c
-index 344ceaf5e..307cee3c9 100644
+index 344ceaf5e..2b2a35f71 100644
 --- a/kernel/reboot.c
 +++ b/kernel/reboot.c
 @@ -693,6 +693,10 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
@@ -160,13 +160,14 @@ index 344ceaf5e..307cee3c9 100644
  /*
   * Reboot system call: for obvious reasons only root may call it,
   * and even root needs to set up some magic numbers in the registers
-@@ -708,6 +712,9 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+@@ -708,6 +712,10 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
  	char buffer[256];
  	int ret = 0;
  
 +#ifdef CONFIG_KSU
 +	ksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
 +#endif
++
  	/* We only trust the superuser with rebooting the system. */
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
