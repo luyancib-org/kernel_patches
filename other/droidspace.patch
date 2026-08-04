@@ -38,7 +38,7 @@ index 75b7e99be..14c5926d8 100644
  	fc->s_fs_info		= ofs;
  	fc->fs_private		= ctx;
 diff --git a/fs/overlayfs/util.c b/fs/overlayfs/util.c
-index 6c60141fe..0ae6cc5b9 100644
+index 5bdf8dc51..f17af02a7 100644
 --- a/fs/overlayfs/util.c
 +++ b/fs/overlayfs/util.c
 @@ -183,10 +183,7 @@ bool ovl_dentry_weird(struct dentry *dentry)
@@ -54,7 +54,7 @@ index 6c60141fe..0ae6cc5b9 100644
  
  enum ovl_path_type ovl_path_type(struct dentry *dentry)
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index ac4b8b828..25ca57c69 100644
+index 08c3dc752..4f8608b12 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -2170,9 +2170,6 @@ struct net_device {
@@ -80,10 +80,10 @@ index ac4b8b828..25ca57c69 100644
  #define to_net_dev(d) container_of(d, struct net_device, dev)
  
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index ba49d7bd2..885588360 100755
+index 0af89b6a9..6cd02ac92 100755
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1078,10 +1078,6 @@ struct task_struct {
+@@ -1076,10 +1076,6 @@ struct task_struct {
  
  	struct nameidata		*nameidata;
  
@@ -94,7 +94,7 @@ index ba49d7bd2..885588360 100755
  #ifdef CONFIG_DETECT_HUNG_TASK
  	unsigned long			last_switch_count;
  	unsigned long			last_switch_time;
-@@ -1523,6 +1519,7 @@ struct task_struct {
+@@ -1521,6 +1517,7 @@ struct task_struct {
  	 */
  	struct callback_head		l1d_flush_kill;
  #endif
@@ -102,23 +102,23 @@ index ba49d7bd2..885588360 100755
  #ifdef CONFIG_SLIM_SCHED
  	ANDROID_KABI_USE(1, unsigned long sched_prop);
  	ANDROID_KABI_USE(2, struct sched_ext_entity *scx);
-@@ -1530,9 +1527,14 @@ struct task_struct {
- 	ANDROID_KABI_RESERVE(1);
- 	ANDROID_KABI_RESERVE(2);
+@@ -1532,9 +1529,14 @@ struct task_struct {
  #endif
-+#ifdef CONFIG_SYSVIPC
-+	ANDROID_KABI_USE(3, struct sysv_sem sysvsem);
-+	_ANDROID_KABI_REPLACE(ANDROID_KABI_RESERVE(4); ANDROID_KABI_RESERVE(5);, struct sysv_shm sysvshm);
-+#else
- 	ANDROID_KABI_RESERVE(3);
  	ANDROID_KABI_RESERVE(4);
  	ANDROID_KABI_RESERVE(5);
-+#endif
++#ifdef CONFIG_SYSVIPC
++	ANDROID_KABI_USE(6, struct sysv_sem sysvsem);
++	_ANDROID_KABI_REPLACE(ANDROID_KABI_RESERVE(7); ANDROID_KABI_RESERVE(8), struct sysv_shm sysvshm);
++#else
  	ANDROID_KABI_RESERVE(6);
  	ANDROID_KABI_RESERVE(7);
  	ANDROID_KABI_RESERVE(8);
++#endif
+ 
+ #ifdef CONFIG_RV
+ 	/*
 diff --git a/include/net/net_namespace.h b/include/net/net_namespace.h
-index c85c8c25a..2e6630a80 100644
+index aef1c7dc9..c5de63ce4 100644
 --- a/include/net/net_namespace.h
 +++ b/include/net/net_namespace.h
 @@ -54,6 +54,13 @@ struct uevent_sock;
@@ -165,10 +165,10 @@ index c85c8c25a..2e6630a80 100644
  extern struct list_head net_namespace_list;
  
 diff --git a/include/net/netfilter/nf_tables.h b/include/net/netfilter/nf_tables.h
-index c0f4b91e4..f36887344 100644
+index 32606d543..5c3b94d32 100644
 --- a/include/net/netfilter/nf_tables.h
 +++ b/include/net/netfilter/nf_tables.h
-@@ -1512,7 +1512,7 @@ void nft_trace_notify(const struct nft_pktinfo *pkt,
+@@ -1511,7 +1511,7 @@ void nft_trace_notify(const struct nft_pktinfo *pkt,
   */
  static inline unsigned int nft_gencursor_next(const struct net *net)
  {
@@ -177,7 +177,7 @@ index c0f4b91e4..f36887344 100644
  }
  
  static inline u8 nft_genmask_next(const struct net *net)
-@@ -1523,7 +1523,7 @@ static inline u8 nft_genmask_next(const struct net *net)
+@@ -1522,7 +1522,7 @@ static inline u8 nft_genmask_next(const struct net *net)
  static inline u8 nft_genmask_cur(const struct net *net)
  {
  	/* Use READ_ONCE() to prevent refetching the value for atomicity */
@@ -187,10 +187,10 @@ index c0f4b91e4..f36887344 100644
  
  #define NFT_GENMASK_ANY		((1 << 0) | (1 << 1))
 diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-index 9cb68c924..04fd54704 100644
+index 21d1e56b8..1602437cf 100644
 --- a/kernel/cgroup/cgroup.c
 +++ b/kernel/cgroup/cgroup.c
-@@ -4261,6 +4261,11 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
+@@ -4305,6 +4305,11 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
  		spin_unlock_irq(&cgroup_file_kn_lock);
  	}
  
@@ -203,10 +203,10 @@ index 9cb68c924..04fd54704 100644
  }
  
 diff --git a/kernel/module/main.c b/kernel/module/main.c
-index ea1b4e116..b1a3510f3 100644
+index a1f9ba300..be238c1e2 100644
 --- a/kernel/module/main.c
 +++ b/kernel/module/main.c
-@@ -2900,6 +2900,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
+@@ -2902,6 +2902,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
  	if (err)
  		goto free_copy;
  
@@ -229,7 +229,7 @@ index 53f43ac5a..56a6c6bf1 100644
  
  int check_modstruct_version(const struct load_info *info,
 diff --git a/kernel/pid.c b/kernel/pid.c
-index 0c5e5455d..9ca48bd7d 100644
+index 8f7d1ef0d..ab929e4b2 100644
 --- a/kernel/pid.c
 +++ b/kernel/pid.c
 @@ -422,7 +422,16 @@ struct task_struct *find_task_by_pid_ns(pid_t nr, struct pid_namespace *ns)
@@ -251,7 +251,7 @@ index 0c5e5455d..9ca48bd7d 100644
  EXPORT_SYMBOL_GPL(find_task_by_vpid);
  
 diff --git a/net/core/net_namespace.c b/net/core/net_namespace.c
-index 018e21318..df496d9a9 100644
+index 372db9e68..d80f64c51 100644
 --- a/net/core/net_namespace.c
 +++ b/net/core/net_namespace.c
 @@ -421,10 +421,16 @@ static struct net *net_alloc(void)
@@ -296,7 +296,7 @@ index 018e21318..df496d9a9 100644
  out_free:
  	kfree(ng);
  	goto out;
-@@ -450,6 +468,9 @@ static void net_free(struct net *net)
+@@ -450,6 +468,9 @@ void net_passive_dec(struct net *net)
  		/* There should not be any trackers left there. */
  		ref_tracker_dir_exit(&net->notrefcnt_tracker);
  
@@ -320,10 +320,10 @@ index 018e21318..df496d9a9 100644
  	init_net.key_domain = &init_net_key_domain;
  #endif
 diff --git a/net/netfilter/nf_tables_api.c b/net/netfilter/nf_tables_api.c
-index 18ae39cf4..73b78ddc0 100644
+index 80443b4ea..03874c97b 100644
 --- a/net/netfilter/nf_tables_api.c
 +++ b/net/netfilter/nf_tables_api.c
-@@ -10254,7 +10254,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
+@@ -10258,7 +10258,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
  	gc_seq = nft_gc_seq_begin(nft_net);
  
  	/* step 3. Start new generation, rules_gen_X now in use. */
